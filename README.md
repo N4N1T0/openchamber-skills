@@ -27,9 +27,15 @@ Requirements: OpenChamber 2.7.2 or newer, and OpenCode skills as markdown files.
 4. Open the **Skills** icon on the rail. The **Global** tab lists
    `~/.config/opencode/skills`; the **Project** tab needs a project open.
 
+### Updates
+
+OpenChamber tells you when a new version is out, and you update it in Settings →
+Extensions. A version is a release tag such as `v1.0.0`. To stay on one version,
+add the tag to the install URL: `…/openchamber-skills#v1.0.0`.
+
 ## What it does
 
-- **Lists every skill that is a file**, under two tabs: **Global**
+- **Lists every skill on disk**, under two tabs: **Global**
   (`~/.config/opencode/skills`, plus the compatibility folders
   `~/.claude/skills` and `~/.agents/skills`) and **Project** (`.opencode/skills`,
   `.claude/skills` and `.agents/skills` of the project you have open). Name,
@@ -37,10 +43,12 @@ Requirements: OpenChamber 2.7.2 or newer, and OpenCode skills as markdown files.
   compatibility folder.
 - **A switch on each row** hides a skill from the model or lists it again. Off
   writes `disable-model-invocation: true` into the frontmatter, and switching
-  back on removes the key again. The skill stays registered either way: you can
-  still load it yourself with `@skill-id`. The row changes immediately and only
-  moves back if the write fails, so the list keeps its scroll position and your
-  search text.
+  back on removes the key again. The row changes immediately and only moves back
+  if the write fails, so the list keeps its scroll position and your search text.
+
+  An **Off** row is dimmed and labelled Off. That means only that the model does
+  not list the skill. The skill still works: it stays registered, and you can
+  load it yourself with `@skill-id`.
 - **Click a row to edit**: the ID (new skills only), the display name, the
   description and the instructions body. Changes are saved with **Save**. The
   switch that hides a skill from the model is on the row itself, and the editor
@@ -55,6 +63,7 @@ Requirements: OpenChamber 2.7.2 or newer, and OpenCode skills as markdown files.
   | Overridden by a folder of higher precedence | warning | OpenCode loads the other file |
   | No instructions | warning | a model that loads it gets nothing to follow |
   | No frontmatter | warning | the description cannot be read |
+  | New ID that another loaded skill already uses | error | creating it would be shadowed or ambiguous; pick another ID |
   | Listed skill whose description does not say when to use it | warning | the model decides from the description alone |
   | Hidden skill whose description reads as a trigger | info | only you read it, so a one-line summary is enough |
   | ID that is not lowercase kebab-case | info | other tools may not accept it |
@@ -63,8 +72,10 @@ Requirements: OpenChamber 2.7.2 or newer, and OpenCode skills as markdown files.
 
   The 500-character limit is this panel's choice, not OpenCode's: OpenCode's
   docs say it does not enforce a maximum description length.
-- **New** creates a skill in the folder you pick — a folder with a `SKILL.md`,
-  or a single `<id>.md` — after checking the ID and that nothing is there yet.
+- **New** creates a skill. You choose its shape (a folder with a `SKILL.md`, or
+  a single `<id>.md`) and its folder. The folder list offers OpenCode's own
+  folder, plus `.claude` and `.agents` only when those already exist. The panel
+  checks the ID and that nothing is there yet.
 - **Delete** sits in the editor, takes two clicks, and for a folder skill
   removes the folder with its scripts and references.
 - **Search** filters by name, ID or description.
@@ -178,6 +189,10 @@ bunx openchamber-guest-bundle panel/main.ts panel/main.js
 bunx openchamber-guest-bundle --node service/main.ts service/main.js
 bunx openchamber-guest-check
 ```
+
+After you change `package.json` or its dependencies, run `bun install` and commit
+`bun.lock`. CI installs with `--frozen-lockfile` and fails when the lockfile does
+not match.
 
 The built `.js` files are committed, because installing an extension never
 builds it. CI (`.github/workflows/check.yml`) runs the tests, the type check,
