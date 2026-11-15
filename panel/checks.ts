@@ -38,6 +38,12 @@ export type CheckInput = {
   winner: string | null;
 };
 
+/**
+ * Wording that names the situation a skill is for. Matched loosely on purpose:
+ * a description that says any of these is handing the model a trigger branch.
+ */
+const TRIGGER = /\b(use (this |it )?when|use for|whenever|when the user|when someone|when you need|for when)\b/i;
+
 /** The shape a portable ID has. OpenCode V2 does not enforce it. */
 const PORTABLE_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -68,6 +74,23 @@ export const checkSkill = (input: CheckInput): Check[] => {
     out.push({
       tone: 'warning',
       text: `The description is ${description.length} characters. It goes to the model at every step, so keep it to when to use the skill (about ${DESCRIPTION_SOFT_LIMIT} at most).`,
+    });
+  }
+
+  // The description is the only thing a model reads to decide whether to load
+  // the skill, so when the model lists it, it must say when to use it. A hidden
+  // skill is read by its user alone, so trigger wording there is just noise.
+  const says = TRIGGER.test(description);
+  if (description !== '' && input.invocable && !input.pinnedOff && !says) {
+    out.push({
+      tone: 'warning',
+      text: 'The model decides from the description alone, and this one does not say when to use the skill. Open with the situation, as in "Use when the user asks to …".',
+    });
+  }
+  if (description !== '' && (!input.invocable || input.pinnedOff) && says) {
+    out.push({
+      tone: 'info',
+      text: 'The model does not list this skill, so the description only helps you. A one-line summary is enough; the trigger wording can go.',
     });
   }
 

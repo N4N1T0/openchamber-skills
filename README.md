@@ -55,6 +55,8 @@ Requirements: OpenChamber 2.7.2 or newer, and OpenCode skills as markdown files.
   | Overridden by a folder of higher precedence | warning | OpenCode loads the other file |
   | No instructions | warning | a model that loads it gets nothing to follow |
   | No frontmatter | warning | the description cannot be read |
+  | Listed skill whose description does not say when to use it | warning | the model decides from the description alone |
+  | Hidden skill whose description reads as a trigger | info | only you read it, so a one-line summary is enough |
   | ID that is not lowercase kebab-case | info | other tools may not accept it |
   | Name that differs from the ID | info | OpenCode loads the skill by its ID |
   | Hidden by the switch, or pinned by `metadata` | info | says how to load it with `@id` |

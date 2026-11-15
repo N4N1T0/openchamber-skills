@@ -4,7 +4,7 @@ import { checkSkill, DESCRIPTION_SOFT_LIMIT, type CheckInput } from './checks';
 const base: CheckInput = {
   id: 'git-release',
   name: '',
-  description: 'Prepare release notes, version bumps and GitHub releases.',
+  description: 'Use when preparing release notes, version bumps and GitHub releases.',
   body: '## Workflow\n\n1. Summarize the changes.',
   invocable: true,
   pinnedOff: false,
@@ -28,8 +28,10 @@ describe('description', () => {
     expect(tones({ description: '   ' })).toEqual(['error']);
   });
 
+  const padded = (length: number) => `Use when testing. ${'x'.repeat(length - 'Use when testing. '.length)}`;
+
   test('over the soft limit is a warning that names the number', () => {
-    const long = 'x'.repeat(DESCRIPTION_SOFT_LIMIT + 1);
+    const long = padded(DESCRIPTION_SOFT_LIMIT + 1);
     const found = texts({ description: long });
     expect(found).toHaveLength(1);
     expect(found[0]!.tone).toBe('warning');
@@ -37,7 +39,7 @@ describe('description', () => {
   });
 
   test('exactly at the limit is fine', () => {
-    expect(texts({ description: 'x'.repeat(DESCRIPTION_SOFT_LIMIT) })).toEqual([]);
+    expect(texts({ description: padded(DESCRIPTION_SOFT_LIMIT) })).toEqual([]);
   });
 });
 
@@ -91,14 +93,56 @@ describe('file shape and body', () => {
   });
 });
 
+describe('trigger wording', () => {
+  test('a listed skill whose description never says when to use it is a warning', () => {
+    const found = texts({ description: 'Prepare release notes and GitHub releases.' });
+    expect(found).toHaveLength(1);
+    expect(found[0]!.tone).toBe('warning');
+    expect(found[0]!.text).toContain('Use when');
+  });
+
+  test('any of the usual trigger openings satisfies it', () => {
+    for (const description of [
+      'Use this skill when the user wants a release.',
+      'Use for database migrations.',
+      'Whenever a release is requested.',
+      'Covers releases, for when someone asks to ship.',
+    ]) {
+      expect(tones({ description })).toEqual([]);
+    }
+  });
+
+  test('a hidden skill whose description reads like a trigger is told the wording can go', () => {
+    const found = texts({
+      invocable: false,
+      description: 'Use when preparing release notes and GitHub releases.',
+    });
+    expect(found.map((check) => check.text)).toContain(
+      'The model does not list this skill, so the description only helps you. A one-line summary is enough; the trigger wording can go.',
+    );
+    expect(found.every((check) => check.tone === 'info')).toBe(true);
+  });
+
+  test('a hidden skill with a plain summary is quiet about wording', () => {
+    expect(texts({ invocable: false, description: 'Release notes and GitHub releases.' })).toEqual([
+      { tone: 'info', text: 'The model does not list this skill. Load it yourself with @git-release.' },
+    ]);
+  });
+
+  test('pinned by metadata, the trigger check does not apply', () => {
+    const found = texts({ pinnedOff: true, invocable: false, description: 'Release notes.' });
+    expect(found.some((check) => check.text.includes('when to use'))).toBe(false);
+  });
+});
+
 describe('invocation', () => {
   test('hidden by the switch says how to load it', () => {
-    const found = texts({ invocable: false });
+    const found = texts({ invocable: false, description: 'Release notes and GitHub releases.' });
     expect(found).toEqual([{ tone: 'info', text: 'The model does not list this skill. Load it yourself with @git-release.' }]);
   });
 
   test('pinned by metadata wins over the switch in the text', () => {
-    const found = texts({ invocable: false, pinnedOff: true });
+    const found = texts({ invocable: false, pinnedOff: true, description: 'Release notes.' });
     expect(found).toHaveLength(1);
     expect(found[0]!.text).toContain('wins over the switch');
   });

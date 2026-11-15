@@ -757,7 +757,7 @@ const renderEditor = (): void => {
     multiline: true,
     rows: 5,
     placeholder: 'Prepare release notes, version bumps and GitHub releases.',
-    helper: 'When to use this skill. A model reads this to decide, and a skill without it is never offered.',
+    helper: 'Open with when to use it: a model decides from this alone. Without one, the skill is never offered.',
     onChange: (value) => {
       draft.description = value;
       paintChecks();
