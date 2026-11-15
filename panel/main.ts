@@ -12,6 +12,7 @@ import {
   mountTabs,
   mountTextField,
 } from '@openchamber/sdk/ui';
+import { checkSkill } from './checks';
 import {
   parseSkillFile,
   rawLines,
@@ -65,6 +66,8 @@ type Draft = {
   body: string;
   form: SkillForm;
   source: SourceId;
+  /** The model lists the skill. Written to disable-model-invocation on save. */
+  invocable: boolean;
 };
 
 /** Frontmatter keys this panel owns. Everything else is carried through. */
@@ -350,6 +353,7 @@ const emptyDraft = (): Draft => ({
   body: '',
   form: 'dir',
   source: roots.includes('opencode') ? 'opencode' : (roots[0] ?? 'opencode'),
+  invocable: true,
 });
 
 const draftOf = (skill: Skill): Draft => ({
@@ -359,7 +363,31 @@ const draftOf = (skill: Skill): Draft => ({
   body: skill.file.body.trim(),
   form: skill.form,
   source: skill.source,
+  invocable: skill.invocable,
 });
+
+/** What the checks need to know about the skill being edited, now. */
+const checkInputOf = (skill: Skill | null, draft: Draft) => {
+  const others = skills.filter((other) => other.id === draft.id.trim() && other !== skill);
+  const winner = skill?.shadowed
+    ? (skills.find((other) => other.id === skill.id && !other.shadowed) ?? null)
+    : null;
+  return {
+    id: skill ? skill.id : draft.id.trim(),
+    name: draft.name,
+    description: draft.description,
+    body: draft.body,
+    invocable: draft.invocable,
+    pinnedOff: skill?.pinnedOff ?? false,
+    isNew: skill === null,
+    hadFrontmatter: skill?.file.hadFrontmatter ?? true,
+    sameIdElsewhere: others.map(sourceLabel),
+    winner: winner ? sourceLabel(winner) : null,
+  };
+};
+
+/** The folder a skill was read from, as the user would type it. */
+const sourceLabel = (skill: Skill): string => sourceById(skill.source).dir[skill.scope];
 
 const openEditor = (skill: Skill | null): void => {
   editing = { skill, draft: skill ? draftOf(skill) : emptyDraft(), error: null, extras: null };
@@ -400,9 +428,12 @@ const save = async (): Promise<void> => {
   const updates: Record<string, string | null> = {
     name: draft.name.trim() === '' ? null : draft.name.trim(),
     description: draft.description.trim(),
-    // `disable-model-invocation` is left out on purpose: only the list's switch
-    // owns it, so saving a hidden skill keeps it hidden.
   };
+  // A metadata block that pins the skill off decides on its own, so the switch
+  // is not written there: the file keeps what the author wrote.
+  if (!skill?.pinnedOff) {
+    updates['disable-model-invocation'] = draft.invocable ? null : 'true';
+  }
 
   const base: SkillFile = skill ? skill.file : { entries: [], hadFrontmatter: false, body: '' };
   const text = writeSkillFile(base, updates, draft.body);
@@ -595,6 +626,17 @@ const renderEditor = (): void => {
   const { skill, draft } = current;
   const newDir = sourceById(draft.source).dir[scope];
 
+  // The checks are repainted on every keystroke, in place, so the field keeps focus.
+  const checksHolder = el('div', 'checks');
+  const paintChecks = (): void => {
+    checksHolder.replaceChildren();
+    for (const check of checkSkill(checkInputOf(skill, draft))) {
+      const holder = el('div');
+      checksHolder.append(holder);
+      mountBanner(holder, { tone: check.tone, title: check.text });
+    }
+  };
+
   const bar = el('div', 'bar');
   const backHolder = el('div');
   bar.append(backHolder);
@@ -650,6 +692,7 @@ const renderEditor = (): void => {
       helper: 'The folder name, and how an agent loads it: @git-release.',
       onChange: (value) => {
         draft.id = value;
+        paintChecks();
       },
     });
 
@@ -702,6 +745,7 @@ const renderEditor = (): void => {
     helper: 'Shown to the model instead of the ID. Optional.',
     onChange: (value) => {
       draft.name = value;
+      paintChecks();
     },
   });
 
@@ -716,6 +760,23 @@ const renderEditor = (): void => {
     helper: 'When to use this skill. A model reads this to decide, and a skill without it is never offered.',
     onChange: (value) => {
       draft.description = value;
+      paintChecks();
+    },
+  });
+
+  const switchHolder = el('div');
+  fields.append(switchHolder);
+  const invocableSwitch = mountSwitch(switchHolder, {
+    label: invocableLabel(draft.invocable),
+    checked: draft.invocable,
+    disabled: skill?.pinnedOff ?? false,
+    description: skill?.pinnedOff
+      ? 'metadata sets opencode/autoinvoke: false, which wins over this switch.'
+      : `Off writes disable-model-invocation: true. You can still load the skill yourself with @${draft.id.trim() || skill?.id || 'id'}.`,
+    onChange: (checked) => {
+      draft.invocable = checked;
+      invocableSwitch.update({ label: invocableLabel(checked), checked });
+      paintChecks();
     },
   });
 
@@ -731,6 +792,7 @@ const renderEditor = (): void => {
     helper: 'What the agent gets when it loads the skill. Paths inside are relative to the skill folder.',
     onChange: (value) => {
       draft.body = value;
+      paintChecks();
     },
   });
 
@@ -738,15 +800,6 @@ const renderEditor = (): void => {
     const kept = untouchedKeys(skill.file, OWNED);
     if (kept.length > 0) {
       fields.append(el('div', 'muted', `Kept as written: ${kept.join(', ')}.`));
-    }
-    if (skill.pinnedOff) {
-      fields.append(
-        el(
-          'div',
-          'muted',
-          'This skill’s metadata sets opencode/autoinvoke: false, which wins over the switch, so the panel leaves both as written. Edit SKILL.md directly to change it.',
-        ),
-      );
     }
     if (current.extras && current.extras.length > 0) {
       const names = current.extras.slice(0, 8).join(', ');
@@ -756,6 +809,9 @@ const renderEditor = (): void => {
       );
     }
   }
+
+  fields.append(checksHolder);
+  paintChecks();
 
   const foot = el('div', 'foot');
   root.append(foot);
@@ -805,6 +861,8 @@ const renderEditor = (): void => {
     });
   }
 };
+
+const invocableLabel = (on: boolean): string => (on ? 'Model can invoke it' : 'Hidden from the model');
 
 const render = (): void => {
   root.replaceChildren();

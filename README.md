@@ -42,7 +42,25 @@ Requirements: OpenChamber 2.7.2 or newer, and OpenCode skills as markdown files.
   moves back if the write fails, so the list keeps its scroll position and your
   search text.
 - **Click a row to edit**: the ID (new skills only), the display name, the
-  description and the instructions body.
+  description, a switch for whether the model lists the skill, and the
+  instructions body. Changes are saved with **Save**; the switch in the editor
+  and the one on the row are the same setting.
+- **Checks** sit under the fields and update as you type. They flag what would
+  make a skill misbehave, and say what to do about it:
+
+  | Check | Tone | When |
+  |---|---|---|
+  | No description | error | OpenCode never offers a skill without one |
+  | Description over 500 characters | warning | it is sent to the model at every step |
+  | Overridden by a folder of higher precedence | warning | OpenCode loads the other file |
+  | No instructions | warning | a model that loads it gets nothing to follow |
+  | No frontmatter | warning | the description cannot be read |
+  | ID that is not lowercase kebab-case | info | other tools may not accept it |
+  | Name that differs from the ID | info | OpenCode loads the skill by its ID |
+  | Hidden by the switch, or pinned by `metadata` | info | says how to load it with `@id` |
+
+  The 500-character limit is this panel's choice, not OpenCode's: OpenCode's
+  docs say it does not enforce a maximum description length.
 - **New** creates a skill in the folder you pick — a folder with a `SKILL.md`,
   or a single `<id>.md` — after checking the ID and that nothing is there yet.
 - **Delete** sits in the editor, takes two clicks, and for a folder skill
@@ -135,6 +153,10 @@ Until you approve it, deleting says so and the rest of the panel works.
 
 - OpenCode's built-in skills are not files, so they are not listed. You can
   still shadow one by creating a skill with that ID.
+- Conflicts are checked only against the skills in the folders the panel
+  reads. Skills declared in `opencode.json` (`skills`), HTTP catalogs and
+  permissions that hide a skill are not visible to the panel, so the checks
+  cannot warn about them.
 - The switch writes `disable-model-invocation`. A skill whose `metadata` block
   sets `opencode/autoinvoke: false` is hidden by that key, which wins, so the
   panel reports it and leaves both as written.
@@ -166,6 +188,8 @@ the extension, so a stale bundle cannot reach anyone. Rebuild and commit
 | `panel/main.ts` | The panel: list, editor, file reads and writes |
 | `panel/frontmatter.ts` | Reading and rewriting skill frontmatter without disturbing it |
 | `panel/sources.ts` | Where skills live, how they are found, IDs and precedence |
+| `panel/checks.ts` | The checks shown while editing a skill |
+| `panel/checks.test.ts` | Tests for each check |
 | `panel/index.html` | The panel's page and its styles |
 | `panel/frontmatter.test.ts` | Tests for the frontmatter round trip |
 | `panel/sources.test.ts` | Tests for discovery, IDs and precedence |
