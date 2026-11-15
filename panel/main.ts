@@ -66,8 +66,6 @@ type Draft = {
   body: string;
   form: SkillForm;
   source: SourceId;
-  /** The model lists the skill. Written to disable-model-invocation on save. */
-  invocable: boolean;
 };
 
 /** Frontmatter keys this panel owns. Everything else is carried through. */
@@ -353,7 +351,6 @@ const emptyDraft = (): Draft => ({
   body: '',
   form: 'dir',
   source: roots.includes('opencode') ? 'opencode' : (roots[0] ?? 'opencode'),
-  invocable: true,
 });
 
 const draftOf = (skill: Skill): Draft => ({
@@ -363,7 +360,6 @@ const draftOf = (skill: Skill): Draft => ({
   body: skill.file.body.trim(),
   form: skill.form,
   source: skill.source,
-  invocable: skill.invocable,
 });
 
 /** What the checks need to know about the skill being edited, now. */
@@ -377,7 +373,7 @@ const checkInputOf = (skill: Skill | null, draft: Draft) => {
     name: draft.name,
     description: draft.description,
     body: draft.body,
-    invocable: draft.invocable,
+    invocable: skill ? skill.invocable : true,
     pinnedOff: skill?.pinnedOff ?? false,
     isNew: skill === null,
     hadFrontmatter: skill?.file.hadFrontmatter ?? true,
@@ -429,11 +425,6 @@ const save = async (): Promise<void> => {
     name: draft.name.trim() === '' ? null : draft.name.trim(),
     description: draft.description.trim(),
   };
-  // A metadata block that pins the skill off decides on its own, so the switch
-  // is not written there: the file keeps what the author wrote.
-  if (!skill?.pinnedOff) {
-    updates['disable-model-invocation'] = draft.invocable ? null : 'true';
-  }
 
   const base: SkillFile = skill ? skill.file : { entries: [], hadFrontmatter: false, body: '' };
   const text = writeSkillFile(base, updates, draft.body);
@@ -742,7 +733,6 @@ const renderEditor = (): void => {
     label: 'Name',
     value: draft.name,
     placeholder: skill ? skill.id : 'Git Release',
-    helper: 'Shown to the model instead of the ID. Optional.',
     onChange: (value) => {
       draft.name = value;
       paintChecks();
@@ -757,25 +747,8 @@ const renderEditor = (): void => {
     multiline: true,
     rows: 5,
     placeholder: 'Prepare release notes, version bumps and GitHub releases.',
-    helper: 'Open with when to use it: a model decides from this alone. Without one, the skill is never offered.',
     onChange: (value) => {
       draft.description = value;
-      paintChecks();
-    },
-  });
-
-  const switchHolder = el('div');
-  fields.append(switchHolder);
-  const invocableSwitch = mountSwitch(switchHolder, {
-    label: invocableLabel(draft.invocable),
-    checked: draft.invocable,
-    disabled: skill?.pinnedOff ?? false,
-    description: skill?.pinnedOff
-      ? 'metadata sets opencode/autoinvoke: false, which wins over this switch.'
-      : `Off writes disable-model-invocation: true. You can still load the skill yourself with @${draft.id.trim() || skill?.id || 'id'}.`,
-    onChange: (checked) => {
-      draft.invocable = checked;
-      invocableSwitch.update({ label: invocableLabel(checked), checked });
       paintChecks();
     },
   });
@@ -861,8 +834,6 @@ const renderEditor = (): void => {
     });
   }
 };
-
-const invocableLabel = (on: boolean): string => (on ? 'Model can invoke it' : 'Hidden from the model');
 
 const render = (): void => {
   root.replaceChildren();

@@ -42,9 +42,9 @@ Requirements: OpenChamber 2.7.2 or newer, and OpenCode skills as markdown files.
   moves back if the write fails, so the list keeps its scroll position and your
   search text.
 - **Click a row to edit**: the ID (new skills only), the display name, the
-  description, a switch for whether the model lists the skill, and the
-  instructions body. Changes are saved with **Save**; the switch in the editor
-  and the one on the row are the same setting.
+  description and the instructions body. Changes are saved with **Save**. The
+  switch that hides a skill from the model is on the row itself, and the editor
+  leaves that setting as it is.
 - **Checks** sit under the fields and update as you type. They flag what would
   make a skill misbehave, and say what to do about it:
 
