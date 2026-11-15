@@ -1,0 +1,39 @@
+{
+  "name": "skills-manager",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "openchamber": {
+    "apiVersion": 1,
+    "engines": {
+      "openchamber": ">=2.7.2"
+    },
+    "id": "skills-manager",
+    "name": "Skills",
+    "icon": "assets/skills.svg",
+    "contributes": {
+      "panel": {
+        "entry": "panel/index.html"
+      },
+      "service": {
+        "entry": "service/main.js",
+        "runtime": "host"
+      },
+      "capabilities": ["files"],
+      "filesystem": [
+        "~/.config/opencode/skills",
+        "~/.config/opencode/skills/**",
+        "~/.claude/skills",
+        "~/.claude/skills/**",
+        "~/.agents/skills",
+        "~/.agents/skills/**"
+      ]
+    }
+  },
+  "dependencies": {
+    "@openchamber/sdk": "2.7.2"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.4"
+  }
+}

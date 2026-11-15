@@ -1,0 +1,35 @@
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - name: Tests
+        run: bun test
+
+      - name: Types
+        run: bunx tsc --noEmit
+
+      - name: The committed bundles must match the sources
+        # Installing an extension never builds it, so a stale .js would ship.
+        run: |
+          bunx openchamber-guest-bundle panel/main.ts panel/main.js
+          bunx openchamber-guest-bundle --node service/main.ts service/main.js
+          git diff --exit-code -- panel/main.js service/main.js
+
+      - name: Package
+        run: bunx openchamber-guest-check
