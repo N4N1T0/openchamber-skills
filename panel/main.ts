@@ -654,11 +654,6 @@ const renderEditor = (): void => {
   );
   root.append(bar);
 
-  if (current.error) {
-    const banner = el('div');
-    root.append(banner);
-    mountBanner(banner, { tone: 'error', title: current.error });
-  }
   if (skill?.shadowed) {
     const banner = el('div');
     root.append(banner);
@@ -786,6 +781,14 @@ const renderEditor = (): void => {
   fields.append(checksHolder);
   paintChecks();
 
+  // The error sits right above the buttons, where the user just clicked, not at
+  // the top of a long form they have scrolled past.
+  if (current.error) {
+    const banner = el('div');
+    root.append(banner);
+    mountBanner(banner, { tone: 'error', title: current.error });
+  }
+
   const foot = el('div', 'foot');
   root.append(foot);
   const saveHolder = el('div');
@@ -809,10 +812,17 @@ const renderEditor = (): void => {
   foot.append(el('div', 'grow'));
 
   if (skill) {
-    const deleteHolder = el('div');
-    foot.append(deleteHolder);
+    // Its own row under the other buttons, so a long confirmation never pushes
+    // the button out of the narrow rail.
+    const target = skill.form === 'dir' ? `${skill.id}/ and its files` : `${skill.id}.md`;
+    const removeRow = el('div', 'foot');
+    root.append(removeRow);
+    const removeHolder = el('div');
+    removeRow.append(removeHolder);
+    const hint = el('div', 'muted', `Deletes ${target}.`);
+    removeRow.append(hint);
     let armed = false;
-    const deleteButton = mountButton(deleteHolder, {
+    const deleteButton = mountButton(removeHolder, {
       label: 'Delete',
       variant: 'destructive',
       size: 'sm',
@@ -820,15 +830,12 @@ const renderEditor = (): void => {
         if (!armed) {
           // First click arms it, the second one deletes: no dialog to mis-click.
           armed = true;
-          deleteButton.update({
-            label:
-              skill.form === 'dir'
-                ? `Delete ${skill.id}/ and its files?`
-                : `Delete ${skill.id}.md?`,
-          });
+          deleteButton.update({ label: 'Yes, delete' });
+          hint.textContent = `Click “Yes, delete” to remove ${target}.`;
           return;
         }
         deleteButton.update({ label: 'Deleting…', loading: true });
+        hint.textContent = '';
         void remove(skill);
       },
     });
