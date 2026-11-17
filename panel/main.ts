@@ -845,8 +845,8 @@ const renderEditor = (): void => {
 const AUTHOR_URL = 'https://www.adrian-alvarez.com/en/';
 
 const renderFooter = (): void => {
-  const footer = el('div', 'footer');
-  const link = el('a', undefined, 'Built with love by nano');
+  const footer = el('div', 'site-foot');
+  const link = el('a', undefined, 'built with love by nano');
   link.href = AUTHOR_URL;
   // The frame is sandboxed, so the link opens through the host, not in the frame.
   link.addEventListener('click', (event) => {
