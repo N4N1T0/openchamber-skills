@@ -842,10 +842,26 @@ const renderEditor = (): void => {
   }
 };
 
+const AUTHOR_URL = 'https://www.adrian-alvarez.com/en/';
+
+const renderFooter = (): void => {
+  const footer = el('div', 'footer');
+  const link = el('a', undefined, 'Built with love by nano');
+  link.href = AUTHOR_URL;
+  // The frame is sandboxed, so the link opens through the host, not in the frame.
+  link.addEventListener('click', (event) => {
+    event.preventDefault();
+    host.openUrl(AUTHOR_URL).catch((error: unknown) => host.toast({ kind: 'error', message: failure(error) }));
+  });
+  footer.append(link);
+  root.append(footer);
+};
+
 const render = (): void => {
   root.replaceChildren();
   if (editing) renderEditor();
   else renderList();
+  renderFooter();
 };
 
 host.onDirectory((next) => {
